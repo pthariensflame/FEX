@@ -399,14 +399,17 @@ static void PrintIDRegInfo() {
   features += fmt::format("isar0=0x{:x},", Features.ISAR0.Get());
   features += fmt::format("isar1=0x{:x},", Features.ISAR1.Get());
   features += fmt::format("isar2=0x{:x},", Features.ISAR2.Get());
+  features += fmt::format("isar3=0x{:x},", Features.ISAR3.Get());
   features += fmt::format("pfr0=0x{:x},", Features.PFR0.Get());
   features += fmt::format("pfr1=0x{:x},", Features.PFR1.Get());
+  features += fmt::format("pfr2=0x{:x},", Features.PFR2.Get());
   features += fmt::format("midr=0x{:x},", Features.MIDR.Get());
   features += fmt::format("mmfr0=0x{:x},", Features.MMFR0.Get());
   features += fmt::format("mmfr1=0x{:x},", Features.MMFR1.Get());
   features += fmt::format("mmfr2=0x{:x},", Features.MMFR2.Get());
   features += fmt::format("mmfr3=0x{:x},", Features.MMFR3.Get());
   features += fmt::format("zfr0=0x{:x},", Features.ZFR0.Get());
+  features += fmt::format("ctr=0x{:x},", Features.CTR.Get());
   features += fmt::format("dczid=0x{:x},", Features.DCZID.Get());
   features += fmt::format("svevl=0x{:x}", Features.SVEVL.Get());
   fprintf(stderr, "Features: '%s'\n", features.c_str());
