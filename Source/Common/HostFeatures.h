@@ -41,17 +41,22 @@ public:
     SM3,
     SM4,
     DotProd,
+    FHM,
+    F16F32DOT,
+    F16F32MM,
     FlagM,
     FlagM2,
     RNDR,
     // PFR0
     FP,
     FP16,
+    FPv2,
     ASIMD,
     ASIMD16,
     RAS,
     SVE,
     DIT,
+    FDIT,
     CSV2,
     CSV3,
     // PFR1
@@ -71,17 +76,20 @@ public:
     LRCPC,
     LRCPC2,
     LRCPC3,
+    SVE_LRCPC,
     FRINTTS,
     SB,
     SPECRES,
     SPECRES2,
     BF16,
+    EBF16,
     SME_F64F64,
     I8MM,
     XS,
     LS64,
     LS64_V,
     LS64_ACCDATA,
+    LS64WB,
     // MMFR0
     ECV,
     // MMFR2
@@ -89,32 +97,51 @@ public:
     // ZFR0
     SVE2,
     SVE2_1,
+    SVE2_2,
+    SVE2_3,
     SVE_AES,
     SVE_PMULL128,
+    SVE_AES2,
     SVE_BitPerm,
     SVE_BF16,
     SVE_B16B16,
+    SVE_BFSCALE,
+    SVE_B16MM,
     SVE_SHA3,
     SVE_SM4,
     SVE_I8MM,
+    SVE_F16F32MM,
     SVE_F32MM,
     SVE_F64MM,
     // MMFR1
     AFP,
     // MMFR3
     S1POE,
+    S1POE2,
     // ISAR2
     WFxt,
     RPRES,
     PACQARMA3,
     MOPS,
+    MOPS_GO,
     HBC,
     CLRBHB,
     SYSREG128,
     SYSINSTR128,
     PRFMSLC,
+    PCDPHINT,
     RPRFM,
     CSSC,
+    CMPBR,
+    LUT,
+    LUT6,
+    // PFR2
+    MTE_STORE_ONLY,
+    FPMR,
+    // ISAR3
+    FAMINMAX,
+    LSFE,
+    FPRCVT,
     // Max indicator
     MAX,
   };
@@ -152,6 +179,9 @@ public:
     MMFR1_EL1,
     MMFR3_EL1,
     ISAR2_EL1,
+    PFR2_EL1,
+    ISAR3_EL1,
+    CTR_EL0,
   };
 
 #define FIELD_FETCHER(feature, field, minimum_field) \
@@ -187,6 +217,8 @@ public:
     FIELD_FETCHER(DotProd, DP, 0b0001);
 
     FIELD_FETCHER(FHM, FHM, 0b0001);
+    FIELD_FETCHER(F16F32DOT, FHM, 0b0010);
+    FIELD_FETCHER(F16F32MM, FHM, 0b0011);
 
     FIELD_FETCHER(FlagM, TS, 0b0001);
     FIELD_FETCHER(FlagM2, TS, 0b0010);
@@ -235,11 +267,13 @@ public:
       return GetField(FP) != 0b1111;
     }
     FIELD_FETCHER(HP, FP, 0b0001);
+    FIELD_FETCHER(FPv2, FP, 0b0010);
 
     bool SupportsAdvSIMD() const {
       return GetField(AdvSIMD) != 0b1111;
     }
     FIELD_FETCHER(ASIMDHP, AdvSIMD, 0b0001);
+    FIELD_FETCHER(ASIMDFPv2, AdvSIMD, 0b0010);
 
     FIELD_FETCHER(GIC4_0, GIC, 0b0001);
     FIELD_FETCHER(GIC4_1, GIC, 0b0011);
@@ -260,8 +294,11 @@ public:
     FIELD_FETCHER(AMU1_1, AMU, 0b0010);
 
     FIELD_FETCHER(DIT, DIT, 0b0001);
+    FIELD_FETCHER(FDIT, DIT, 0b0010);
 
     FIELD_FETCHER(RME, RME, 0b0001);
+    FIELD_FETCHER(RME_GPC2, RME, 0b0010);
+    FIELD_FETCHER(RME_GPC3, RME, 0b0011);
 
     FIELD_FETCHER(CSV2, CSV2, 0b0001);
     FIELD_FETCHER(CSV2_2, CSV2, 0b0010);
@@ -293,6 +330,7 @@ public:
   class PFR1Reg final : public FeatureReg {
   public:
     FIELD_FETCHER(BTI, BT, 0b0001);
+    FIELD_FETCHER(BTIE, BT, 0b0010);
 
     FIELD_FETCHER(SSBS, SSBS, 0b0001);
     FIELD_FETCHER(SSBS2, SSBS, 0b0010);
@@ -397,6 +435,7 @@ public:
     FIELD_FETCHER(LRCPC, LRCPC, 0b0001);
     FIELD_FETCHER(LRCPC2, LRCPC, 0b0010);
     FIELD_FETCHER(LRCPC3, LRCPC, 0b0011);
+    FIELD_FETCHER(SVE_LRCPC, LRCPC, 0b0100);
 
     // Ignoring GPA and GPI
 
@@ -408,7 +447,7 @@ public:
     FIELD_FETCHER(SPECRES2, SPECRES, 0b0010);
 
     FIELD_FETCHER(BF16, BF16, 0b0001);
-    FIELD_FETCHER(SME_F64F64, BF16, 0b0010);
+    FIELD_FETCHER(EBF16, BF16, 0b0010);
 
     FIELD_FETCHER(DGH, DGH, 0b0001);
 
@@ -419,6 +458,7 @@ public:
     FIELD_FETCHER(LS64, LS64, 0b0001);
     FIELD_FETCHER(LS64_V, LS64, 0b0010);
     FIELD_FETCHER(LS64_ACCDATA, LS64, 0b0011);
+    FIELD_FETCHER(LS64WB, LS64, 0b0100);
 
   private:
     enum Field {
@@ -495,22 +535,29 @@ public:
   public:
     FIELD_FETCHER(SVE2, SVEver, 0b0001);
     FIELD_FETCHER(SVE2_1, SVEver, 0b0010);
+    FIELD_FETCHER(SVE2_2, SVEver, 0b0011);
+    FIELD_FETCHER(SVE2_3, SVEver, 0b0100);
 
     FIELD_FETCHER(SVE_AES, AES, 0b0001);
     FIELD_FETCHER(SVE_PMULL128, AES, 0b0010);
+    FIELD_FETCHER(SVE_AES2, AES, 0b0011);
 
     FIELD_FETCHER(SVE_BitPerm, BitPerm, 0b0001);
 
     FIELD_FETCHER(SVE_BF16, BF16, 0b0001);
-    FIELD_FETCHER(SME_F64F64, BF16, 0b0010);
+    FIELD_FETCHER(SVE_EBF16, BF16, 0b0010);
 
-    FIELD_FETCHER(SVE_B16B16, B16B16, 0b0010);
+    FIELD_FETCHER(SVE_B16B16, B16B16, 0b0001);
+    FIELD_FETCHER(SVE_BFSCALE, B16B16, 0b0010);
+    FIELD_FETCHER(SVE_B16MM, B16B16, 0b0011);
 
     FIELD_FETCHER(SVE_SHA3, SHA3, 0b0001);
 
     FIELD_FETCHER(SVE_SM4, SM4, 0b0001);
 
     FIELD_FETCHER(SVE_I8MM, I8MM, 0b0001);
+
+    FIELD_FETCHER(SVE_F16F32MM, F16MM, 0b0001);
 
     FIELD_FETCHER(SVE_F32MM, F32MM, 0b0001);
 
@@ -521,19 +568,19 @@ public:
       SVEver = 0 * 4,
       AES = 1 * 4,
       RES0 = 2 * 4,
-      RES1 = 3 * 4,
+      EltPerm = 3 * 4,
       BitPerm = 4 * 4,
       BF16 = 5 * 4,
       B16B16 = 6 * 4,
-      RES2 = 7 * 4,
+      RES1 = 7 * 4,
       SHA3 = 8 * 4,
-      RES3 = 9 * 4,
+      RES2 = 9 * 4,
       SM4 = 10 * 4,
       I8MM = 11 * 4,
-      RES4 = 12 * 4,
+      F16MM = 12 * 4,
       F32MM = 13 * 4,
       F64MM = 14 * 4,
-      RES5 = 15 * 4,
+      RES3 = 15 * 4,
     };
   };
 
@@ -565,6 +612,7 @@ public:
   class MMFR3Reg final : public FeatureReg {
   public:
     FIELD_FETCHER(S1POE, S1POE, 0b0001);
+    FIELD_FETCHER(S1POE2, S1POE, 0b0010);
 
   private:
     enum Field {
@@ -580,6 +628,7 @@ public:
       D128_2 = 9 * 4,
       SNERR = 10 * 4,
       ANERR = 11 * 4,
+      CCONT = 12 * 4,
       SDERR = 13 * 4,
       ADERR = 14 * 4,
       SPEC_FPACC = 15 * 4,
@@ -595,6 +644,7 @@ public:
     FIELD_FETCHER(PACQARMA3, GPA3, 0b0001);
 
     FIELD_FETCHER(MOPS, MOPS, 0b0001);
+    FIELD_FETCHER(MOPS_GO, MOPS, 0b0001);
 
     FIELD_FETCHER(HBC, BC, 0b0001);
 
@@ -610,9 +660,15 @@ public:
 
     FIELD_FETCHER(PRFMSLC, PRFMSLC, 0b0001);
 
+    FIELD_FETCHER(PCDPHINT, PCDPHINT, 0b0001);
+
     FIELD_FETCHER(RPRFM, RPRFM, 0b0001);
 
     FIELD_FETCHER(CSSC, CSSC, 0b0001);
+    FIELD_FETCHER(CMPBR, CSSC, 0b0010);
+
+    FIELD_FETCHER(LUT, LUT, 0b0001);
+    FIELD_FETCHER(LUT6, LUT, 0b0010);
 
   private:
     enum Field {
@@ -627,11 +683,101 @@ public:
       SYSREG_128 = 8 * 4,
       SYSINSTR_128 = 9 * 4,
       PRFMSLC = 10 * 4,
-      RES0 = 11 * 4,
+      PCDPHINT = 11 * 4,
       RPRFM = 12 * 4,
       CSSC = 13 * 4,
-      RES1 = 14 * 4,
+      LUT = 14 * 4,
       ATS1A = 15 * 4,
+    };
+  };
+
+  class PFR2Reg final : public FeatureReg {
+  public:
+    FIELD_FETCHER(MTE_STORE_ONLY, MTESTOREONLY, 0b0001);
+
+    FIELD_FETCHER(GICv5, GCIE, 0b0001);
+
+    FIELD_FETCHER(MTE_EIRG, MTEEIRG, 0b0001);
+
+    FIELD_FETCHER(FPMR, FPMR, 0b0001);
+
+  private:
+    enum Field {
+      MTEPERM = 0 * 4,
+      MTESTOREONLY = 1 * 4,
+      MTEFAR = 2 * 4,
+      GCIE = 3 * 4,
+      UINJ = 4 * 4,
+      MTEEIRG = 5 * 4,
+      FGDT = 6 * 4,
+      MPAM2 = 7 * 4,
+      FPMR = 8 * 4,
+      VMTE = 9 * 4,
+      VMTETC = 10 * 4,
+      VMTETCL = 11 * 4,
+    };
+  };
+
+  class ISAR1Reg final : public FeatureReg {
+  public:
+    FIELD_FETCHER(CPA, CPA, 0b0001);
+    FIELD_FETCHER(CPA2, CPA, 0b0010);
+
+    FIELD_FETCHER(FAMINMAX, FAMINMAX, 0b0001);
+
+    FIELD_FETCHER(LSFE, LSFE, 0b0001);
+
+    FIELD_FETCHER(FPRCVT, FPRCVT, 0b0001);
+
+    FIELD_FETCHER(CMH, LSCSHINT, 0b0001);
+
+    FIELD_FETCHER(LSCP, LSCP, 0b0001);
+    FIELD_FETCHER(LSC64B, LSCP, 0b0010);
+
+    FIELD_FETCHER(CFLT, CFLT, 0b0001);
+
+    FIELD_FETCHER(HINTE, HINTE, 0b0001);
+
+    FIELD_FETCHER(RLCS, RLCS, 0b0001);
+
+  private:
+    enum Field {
+      CPA = 0 * 4,
+      FAMINMAX = 1 * 4,
+      TLBIW = 2 * 4,
+      PACM = 3 * 4,
+      LSFE = 4 * 4,
+      OCCMO = 5 * 4,
+      LSUI = 6 * 4,
+      FPRCVT = 7 * 4,
+      PAC_frac2 = 8 * 4,
+      MTETC = 9 * 4,
+      LSCSHINT = 10 * 4,
+      LSCP = 11 * 4,
+      MTEGM0 = 12 * 4,
+      CFLT = 13 * 4,
+      HINTE = 14 * 4,
+      RLCS = 15 * 4,
+    };
+  };
+
+  class CTRReg final : public FeatureReg {
+  public:
+    uint64_t UnalignedAtomicGranule() const {
+      uint64_t RawSize = GetField(LSE2Size);
+      if (RawSize == 0xF) {
+        return UINT64_MAX; // "unbounded"
+      }
+      return 16 << RawSize;
+    }
+
+  private:
+    enum Field {
+      IminLine = 0 * 4,
+      DminLine = 4 * 4,
+      ERG = 5 * 4,
+      CWG = 6 * 4,
+      LSE2Size = 10 * 4,
     };
   };
 
@@ -650,6 +796,9 @@ public:
   MMFR1Reg MMFR1;
   MMFR3Reg MMFR3;
   ISAR2Reg ISAR2;
+  PFR2Reg PFR2;
+  PFR2Reg ISAR3;
+  CTRReg CTR;
   DCZIDReg DCZID;
   SVEVLReg SVEVL;
 
@@ -670,6 +819,10 @@ public:
 
   const DCZIDReg& GetDCZID() const {
     return DCZID;
+  }
+
+  const CTRReg& GetCTR() const {
+    return CTR;
   }
 
   uint64_t GetSVEVectorLengthInBits() const {
