@@ -51,6 +51,7 @@ public:
     ZFR0.SetReg(ReadRegU64(Key, "CP 4024"));
     MMFR1.SetReg(ReadRegU64(Key, "CP 4039"));
     ISAR2.SetReg(ReadRegU64(Key, "CP 4032"));
+    CTR.SetReg(Get_CTR_EL0());
     DCZID.SetReg(Get_DCZID_EL0());
     FillFeatureFlags();
   }
