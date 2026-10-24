@@ -78,6 +78,11 @@ GetSysReg(MMFR3_EL1, s3_0_c0_c7_3); // Can't request by name
 GetSysReg(ZFR0_EL1, s3_0_c0_c4_4); // Can't request by name
 GetSysReg(MMFR1_EL1, ID_AA64MMFR1_EL1);
 GetSysReg(ISAR2_EL1, ID_AA64ISAR2_EL1);
+#ifndef _WIN32
+GetSysReg(PFR2_EL1, s3_0_c0_c4_2); // Can't request by name
+GetSysReg(ISAR3_EL1, s3_0_c0_c6_3); // Can't request by name
+#endif
+GetSysReg(CTR_EL0, CTR_EL0);
 GetSysReg(DCZID_EL0, DCZID_EL0);
 
 class CPUFeaturesFromID final : public FEX::CPUFeatures {
@@ -98,6 +103,14 @@ public:
 #endif
     MMFR1.SetReg(Get_MMFR1_EL1());
     ISAR2.SetReg(Get_ISAR2_EL1());
+#ifndef _WIN32
+    if (FEX::LinuxVersion::CalculateHostKernelVersion() >= FEX::LinuxVersion::KernelVersion(7, 3)) {
+      // Both only exist in kernel 7.3 and newer.
+      PFR2.SetReg(Get_PFR2_EL1());
+      ISAR3.SetReg(Get_ISAR3_EL1());
+    }
+#endif
+    CTR.SetReg(Get_CTR_EL0());
     DCZID.SetReg(Get_DCZID_EL0());
 
     if (PFR0.SupportsSVE()) {
@@ -158,10 +171,14 @@ public:
         ISAR1.SetReg(ValueHex);
       } else if (Key == "isar2") {
         ISAR2.SetReg(ValueHex);
+      } else if (Key == "isar3") {
+        ISAR3.SetReg(ValueHex);
       } else if (Key == "pfr0") {
         PFR0.SetReg(ValueHex);
       } else if (Key == "pfr1") {
         PFR1.SetReg(ValueHex);
+      } else if (Key == "pfr2") {
+        PFR2.SetReg(ValueHex);
       } else if (Key == "midr") {
         MIDR.SetReg(ValueHex);
       } else if (Key == "mmfr0") {
@@ -174,6 +191,8 @@ public:
         MMFR3.SetReg(ValueHex);
       } else if (Key == "zfr0") {
         ZFR0.SetReg(ValueHex);
+      } else if (Key == "ctr") {
+        CTR.SetReg(ValueHex);
       } else if (Key == "dczid") {
         DCZID.SetReg(ValueHex);
       } else if (Key == "svevl") {
@@ -225,6 +244,9 @@ void FEX::CPUFeatures::FillFeatureFlags() {
   ENABLE_FEATURE_IF(ISAR0, SM3);
   ENABLE_FEATURE_IF(ISAR0, SM4);
   ENABLE_FEATURE_IF(ISAR0, DotProd);
+  ENABLE_FEATURE_IF(ISAR0, FHM);
+  ENABLE_FEATURE_IF(ISAR0, F16F32DOT);
+  ENABLE_FEATURE_IF(ISAR0, F16F32MM);
   ENABLE_FEATURE_IF(ISAR0, FlagM);
   ENABLE_FEATURE_IF(ISAR0, FlagM2);
   ENABLE_FEATURE_IF(ISAR0, RNDR);
@@ -237,30 +259,45 @@ void FEX::CPUFeatures::FillFeatureFlags() {
   ENABLE_FEATURE_IF(ISAR1, LRCPC);
   ENABLE_FEATURE_IF(ISAR1, LRCPC2);
   ENABLE_FEATURE_IF(ISAR1, LRCPC3);
+  ENABLE_FEATURE_IF(ISAR1, SVE_LRCPC);
   ENABLE_FEATURE_IF(ISAR1, FRINTTS);
   ENABLE_FEATURE_IF(ISAR1, SB);
   ENABLE_FEATURE_IF(ISAR1, SPECRES);
   ENABLE_FEATURE_IF(ISAR1, SPECRES2);
   ENABLE_FEATURE_IF(ISAR1, BF16);
-  ENABLE_FEATURE_IF(ISAR1, SME_F64F64);
+  ENABLE_FEATURE_IF(ISAR1, EBF16);
+  if (PFR0.SupportsEBF16()) {
+    SetFeature(Feature::SME_F64F64); // TODO: Grab from AA64SMFR0_EL1
+  }
   ENABLE_FEATURE_IF(ISAR1, I8MM);
   ENABLE_FEATURE_IF(ISAR1, XS);
   ENABLE_FEATURE_IF(ISAR1, LS64);
   ENABLE_FEATURE_IF(ISAR1, LS64_V);
   ENABLE_FEATURE_IF(ISAR1, LS64_ACCDATA);
+  ENABLE_FEATURE_IF(ISAR1, LS64WB);
 
   // ISAR2
   ENABLE_FEATURE_IF(ISAR2, WFxt);
   ENABLE_FEATURE_IF(ISAR2, RPRES);
   ENABLE_FEATURE_IF(ISAR2, PACQARMA3);
   ENABLE_FEATURE_IF(ISAR2, MOPS);
+  ENABLE_FEATURE_IF(ISAR2, MOPS_GO);
   ENABLE_FEATURE_IF(ISAR2, HBC);
   ENABLE_FEATURE_IF(ISAR2, CLRBHB);
   ENABLE_FEATURE_IF(ISAR2, SYSREG128);
   ENABLE_FEATURE_IF(ISAR2, SYSINSTR128);
   ENABLE_FEATURE_IF(ISAR2, PRFMSLC);
+  ENABLE_FEATURE_IF(ISAR2, PCDPHINT);
   ENABLE_FEATURE_IF(ISAR2, RPRFM);
   ENABLE_FEATURE_IF(ISAR2, CSSC);
+  ENABLE_FEATURE_IF(ISAR2, CMPBR);
+  ENABLE_FEATURE_IF(ISAR2, LUT);
+  ENABLE_FEATURE_IF(ISAR2, LUT6);
+
+  // ISAR3
+  ENABLE_FEATURE_IF(ISAR3, FAMINMAX);
+  ENABLE_FEATURE_IF(ISAR3, LSFE);
+  ENABLE_FEATURE_IF(ISAR3, FPRCVT);
 
   // PFR0
   ENABLE_FEATURE_IF(PFR0, FP);
@@ -273,9 +310,11 @@ void FEX::CPUFeatures::FillFeatureFlags() {
   if (PFR0.SupportsASIMDHP()) {
     SetFeature(Feature::ASIMD16);
   }
+  ENABLE_FEATURE_IF(PFR0, FPv2);
   ENABLE_FEATURE_IF(PFR0, RAS);
   ENABLE_FEATURE_IF(PFR0, SVE);
   ENABLE_FEATURE_IF(PFR0, DIT);
+  ENABLE_FEATURE_IF(PFR0, FDIT);
   ENABLE_FEATURE_IF(PFR0, CSV2);
   ENABLE_FEATURE_IF(PFR0, CSV3);
 
@@ -289,6 +328,10 @@ void FEX::CPUFeatures::FillFeatureFlags() {
   ENABLE_FEATURE_IF(PFR1, SME);
   ENABLE_FEATURE_IF(PFR1, SME2);
 
+  // PFR2
+  ENABLE_FEATURE_IF(PFR2, MTE_STORE_ONLY);
+  ENABLE_FEATURE_IF(PFR2, FPMR);
+
   // MMFR0
   ENABLE_FEATURE_IF(MMFR0, ECV);
 
@@ -298,18 +341,28 @@ void FEX::CPUFeatures::FillFeatureFlags() {
   // MMFR2
   ENABLE_FEATURE_IF(MMFR2, LSE2);
 
+  // MMFR3
+  ENABLE_FEATURE_IF(MMFR3, S1POE);
+  ENABLE_FEATURE_IF(MMFR3, S1POE2);
+
   // ZFR0
   if (Supports(Feature::SVE)) {
     ENABLE_FEATURE_IF(ZFR0, SVE2);
     ENABLE_FEATURE_IF(ZFR0, SVE2_1);
+    ENABLE_FEATURE_IF(ZFR0, SVE2_2);
+    ENABLE_FEATURE_IF(ZFR0, SVE2_3);
     ENABLE_FEATURE_IF(ZFR0, SVE_AES);
     ENABLE_FEATURE_IF(ZFR0, SVE_PMULL128);
+    ENABLE_FEATURE_IF(ZFR0, SVE_AES2);
     ENABLE_FEATURE_IF(ZFR0, SVE_BitPerm);
     ENABLE_FEATURE_IF(ZFR0, SVE_BF16);
     ENABLE_FEATURE_IF(ZFR0, SVE_B16B16);
+    ENABLE_FEATURE_IF(ZFR0, SVE_BFSCALE);
+    ENABLE_FEATURE_IF(ZFR0, SVE_B16MM);
     ENABLE_FEATURE_IF(ZFR0, SVE_SHA3);
     ENABLE_FEATURE_IF(ZFR0, SVE_SM4);
     ENABLE_FEATURE_IF(ZFR0, SVE_I8MM);
+    ENABLE_FEATURE_IF(ZFR0, SVE_F16F32MM);
     ENABLE_FEATURE_IF(ZFR0, SVE_F32MM);
     ENABLE_FEATURE_IF(ZFR0, SVE_F64MM);
   }
